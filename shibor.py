@@ -9,31 +9,32 @@ import json
 import requests
 import BeautifulSoup as bs
 from datetime import datetime
+import argparse
 
 #shibor所在的页面
 shiborUrl="http://www.shibor.org/shibor/web/html/shibor.html"
 #要把数据发往的页面
-serverUrl="http://www.financedatas.com/shibor/gather/"
+#serverUrl="http://www.financedatas.com/shibor/gather/"
+serverUrl="http://172.16.192.222:8080/shibor/"
 
 
 class Shibor(object):
     """用于shibor利率相关的数据收集"""
 
-    def __init__(self,shiborurl=shiborUrl,serverUrl=serverUrl):
+    def __init__(self,shiborUrl=shiborUrl,serverUrl=serverUrl):
         """"""
         #把要收集的web页面的url赋值给__shiborurl
-        self.__shiborurl=shiborurl
-        #得到返回的http内容
-        self.__html=requests.get(self.__shiborurl).content
-        #把http内容包装成bs对象、用于后面的操作
-        self.html=bs.BeautifulSoup(self.__html)
+        self.__shiborUrl=shiborUrl
+        self.__serverUrl=serverUrl
 
     def extra(self):
         """把数据从html中抽取出来..."""
         result={}
+        tables=None
         #注意这个html是一个BeautifulSoup对象
-        html=self.html
-        tables=self.html.body.findAll('table')
+        rawHtml=requests.get(self.__shiborUrl).content
+        html=bs.BeautifulSoup(rawHtml)
+        tables=html.body.findAll('table')
         table0=tables[0]
         #----以下为真正的数据抽逻辑
         #--  01：抽取shibor发布的时间、这个时间在第二个td中指明。
@@ -96,10 +97,16 @@ class Shibor(object):
         """
         rawData=self.extra()
         data=self.format(data=rawData)
-        requests.post('http://172.16.192.222:8080/shibor/',data=data)
+        requests.post(self.__serverUrl,data=data)
 
-        
+
+
 if __name__=="__main__":
-    shibor=Shibor()
-    data=shibor.postto()
+    parser=argparse.ArgumentParser()
+    parser.add_argument('--shiborUrl',default=shiborUrl,help='shibor利率公布的页面')
+    parser.add_argument('--serverUrl',default=serverUrl,help='服务器收集shibor的接口')
+    args=parser.parse_args()
+    shibor=Shibor(shiborUrl=args.shiborUrl,serverUrl=args.serverUrl)
+    #shibor.postto()
+    data=shibor.format()
     print(data)
