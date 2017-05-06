@@ -3,20 +3,23 @@
 
 """
 这个shiber.py 用于收集上海银行间同业折放利率
+python 版本 python-2.7
 """
 import json
 import requests
 import BeautifulSoup as bs
 from datetime import datetime
 
-shiborUrl="http://www.shibor.org//shibor/web/html/shibor.html"
-
+#shibor所在的页面
+shiborUrl="http://www.shibor.org/shibor/web/html/shibor.html"
+#要把数据发往的页面
+serverUrl="http://www.financedatas.com/shibor/gather/"
 
 
 class Shibor(object):
     """用于shibor利率相关的数据收集"""
 
-    def __init__(self,shiborurl=shiborUrl):
+    def __init__(self,shiborurl=shiborUrl,serverUrl=serverUrl):
         """"""
         #把要收集的web页面的url赋值给__shiborurl
         self.__shiborurl=shiborurl
@@ -63,14 +66,40 @@ class Shibor(object):
         #--  10：9M  一年期利率
         oneYear=trs[7].findAll('td')[2].getText()
         result['oneYear']=oneYear
-
-
         return result
+
+    def format(self,data=None):
+        """对抽取到的数据进行格式化
+        pushDate --> datetime
+        others   --> decimal
+        """
+        if data == None:
+            result=self.extra()
+        else:
+            result=data
+        #把pushDate 的数据由str 转换到datetime 类型.
+        datestr,timestr=result['pushDate'].split(' ')
+        yearint,monthint,dayint=[ int(x)for x in datestr.split('-')]
+        hourint,mineteint=[int(x) for x in timestr.split(':')]
+        result['pushDate']=datetime(yearint,monthint,dayint,hourint,mineteint,second=0)
+        #把其它key的数据由str 转换到float
+        for key in result.keys():
+            if key != 'pushDate':
+                result[key]=float(str(result[key]))
+        return result
+
+    def postto(self):
+        """
+        1、调用extra 完成数据的抽取
+        2、调用format 完成数据的格式化
+        3、通过post请求把数据上传到服务器
+        """
+        rawData=self.extra()
+        data=self.format(data=rawData)
+        requests.post('http://172.16.192.222:8080/shibor/',data=data)
+
         
-    
-
-
 if __name__=="__main__":
     shibor=Shibor()
-    data=shibor.extra()
+    data=shibor.postto()
     print(data)
