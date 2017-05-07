@@ -5,16 +5,23 @@
 这个shiber.py 用于收集上海银行间同业折放利率
 python 版本 python-3.x
 """
+
+
 import json
 import requests
 from bs4 import BeautifulSoup
 from datetime import datetime
 import argparse
+import logging
 
+
+#shibor发布页面
 shiborUrl="http://www.shibor.org/shibor/web/html/shibor.html"
+#接收shibor数据的服务器接口
 #serverUrl="http://www.financedatas.com/shibor/gather/"
 serverUrl="http://172.16.192.222:8080/shibor/"
-
+#日志的文件的配置信息
+logging.basicConfig(filename="/tmp/shibor.log",level=logging.DEBUG,format="%(levelname)s:%(asctime)s:%(message)s")
 
 class Shibor(object):
     """用于shibor利率相关的数据收集"""
@@ -22,11 +29,15 @@ class Shibor(object):
     def __init__(self,shiborUrl=shiborUrl,serverUrl=serverUrl):
         """"""
         #把要收集的web页面的url赋值给__shiborurl
+        #打印日志
+        logging.info("in  __init__ function")
         self.__shiborUrl=shiborUrl
         self.__serverUrl=serverUrl
-
+        #打印日志
+        logging.info("out __init__ function shiborUrl={0}  serverUrl={1}".format(self.__shiborUrl,self.__serverUrl))
     def extra(self):
         """把数据从html中抽取出来..."""
+        logging.info("in  extra function")
         result={}
         tables=None
         #注意这个html是一个BeautifulSoup对象
@@ -65,6 +76,7 @@ class Shibor(object):
         #--  10：9M  一年期利率
         oneYear=trs[7].findAll('td')[2].getText()
         result['oneYear']=oneYear
+        logging.info("out extra function")
         return result
 
     def format(self,data=None):
@@ -72,6 +84,7 @@ class Shibor(object):
         pushDate --> datetime
         others   --> decimal
         """
+        logging.info("in  format function")
         if data == None:
             result=self.extra()
         else:
@@ -85,6 +98,7 @@ class Shibor(object):
         for key in result.keys():
             if key != 'pushDate':
                 result[key]=float(str(result[key]))
+        logging.info("out format function {0}".format(result))
         return result
 
     def postto(self):
@@ -95,7 +109,8 @@ class Shibor(object):
         """
         rawData=self.extra()
         data=self.format(data=rawData)
-        requests.post(self.__serverUrl,data=data)
+        response=requests.post(self.__serverUrl,data=data)
+        print(response)
 
 
 
